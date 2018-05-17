@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
 //     }
     
     /* Convert to binary */
-    for (int i = 0; i<=65; i++) {
-        printf("%d in binary is %d\n", i, getBinary(i));
+    for (int i = 0; i <= 15; i++) {
+        printf("%x in binary is %d\n", i, getBinary(i));
     }
     return 0;
 }
