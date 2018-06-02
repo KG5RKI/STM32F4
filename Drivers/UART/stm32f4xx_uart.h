@@ -1,0 +1,22 @@
+enum UARTx {UART_1, UART_2, UART_3, UART_4, UART_5, UART_6};
+typedef enum UARTx UARTx;
+enum USART_Interrupt_Event {TXE, CTS, TC, RXNE, ORE, IDLE, PE, LBD, NF_ORE_FE};
+typedef enum USART_Interrupt_Event USART_Interrupt_Event;
+
+extern void UARTx_Init(UARTx, uint8_t, double, _Bool, uint32_t);
+extern void UARTx_En(UARTx);
+extern void UARTx_Dis(UARTx);
+extern void UARTx_Tx_En(UARTx);
+extern void UARTx_Tx_Dis(UARTx);
+extern void UARTx_Rx_En(UARTx);
+extern void UARTx_Rx_Dis(UARTx);
+extern void UARTx_waitUntilTxRegEmpty(UARTx);
+extern void UARTx_waitUntilRxDataAvailable(UARTx);
+extern void UARTx_waitUntilTransmissionComplete(UARTx);
+extern void UARTx_Tx_char(UARTx , char);
+extern void UARTx_Tx_int(UARTx , int);
+extern void UARTx_Tx_string(UARTx , char *);
+extern char UARTx_Rx_char(UARTx);
+extern int UARTx_Rx_int(UARTx);
+extern void UARTx_Rx_char_memwrite(UARTx , char *, int);
+extern void UARTx_Interrupt_Event_En(UARTx, USART_Interrupt_Event);
