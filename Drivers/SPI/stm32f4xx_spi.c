@@ -1,6 +1,8 @@
 #include "stm32f4xx.h"                  // Device header
 #include "stm32f4xx_spi.h"
 
+#include "stdbool.h"
+
 /* Define GPIO macros */
 #define INPUT  0x0
 #define OUTPUT 0x1
@@ -21,7 +23,6 @@
 
 #define AF5 0x5
 #define AF6 0x6
-#include "stdbool.h"
 
 void SPI1_GPIO_Init()
 {
