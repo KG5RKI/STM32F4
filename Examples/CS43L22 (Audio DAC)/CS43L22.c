@@ -69,10 +69,14 @@ void CS43L22_GPIO_Init()
 	GPIOC->AFR[1] |= (6<<16);											//AF6 - I2S3/SPI3
 	
 	/* Configure I2C pins - SCL(PB6) &  SDA(PB9) */
-	GPIOB->MODER |= (2<<12) | (2<<18); 	//Alternate function mode
-	GPIOB->OSPEEDR |= (2<<12) | (2<<18);//High speed
-	GPIOB->OTYPER |= (1<<6) | (1<<9);		//Open drain
-	GPIOB->PUPDR |= (1<<12) | (1<<18);	//Pull up
+	GPIOB->MODER |= (2<<12);	 	//Alternate function mode
+	GPIOB->MODER |= (2<<18);
+	GPIOB->OSPEEDR |= (2<<12);	//High speed
+	GPIOB->OSPEEDR |= (2<<18);
+	GPIOB->OTYPER |= (1<<6);		//Open drain
+	GPIOB->OTYPER |= (1<<9);
+	GPIOB->PUPDR |= (1<<12);		//Pull up
+	GPIOB->PUPDR |= (1<<18);
 	GPIOB->AFR[0] |= (4<<24);						//AF4 - I2C1
 	GPIOB->AFR[1] |= (4<<4);						//AF4 - I2C1
 	
@@ -160,7 +164,7 @@ void I2C1_GenerateSTART()
 
 void I2C1_Send7bitAddressW(uint8_t addr)
 {
-	I2C1->DR |= (addr<<1) | 0x0;				//Write address to I2C data register
+	I2C1->DR = (addr<<1);								//Write address to I2C data register
 	while (!((I2C1->SR1 >> 1) & 0x1));	//Wait until address is sent
 	
 	(void)I2C1->SR1;										//Clear SB bit by reading SR1 & SR2
@@ -169,7 +173,7 @@ void I2C1_Send7bitAddressW(uint8_t addr)
 
 void I2C1_Send7bitAddressR(uint8_t addr)
 {
-	I2C1->DR |= (addr<<1) | 0x1;				//Write address to I2C data register
+	I2C1->DR = (addr<<1) | 0x1;				//Write address to I2C data register
 	while (!((I2C1->SR1 >> 1) & 0x1));	//Wait until address is sent
 	
 	(void)I2C1->SR1;										//Clear SB bit by reading SR1 & SR2
@@ -178,7 +182,7 @@ void I2C1_Send7bitAddressR(uint8_t addr)
 
 void I2C1_GenerateStop()
 {
-	while (!((I2C1->SR1 >> 2) & 0x1));	//Wait for BTF flag
+	//while (!((I2C1->SR1 >> 2) & 0x1));	//Wait for BTF flag
 	I2C1->CR1 |= (1<<9);								//Generate STOP condition
 }
 
@@ -240,6 +244,16 @@ void I2S3_SendData(uint16_t data)
 	SPI3->DR = data;
 }
 
+void GPIO_SetPin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
+{
+	gpio_td->BSRR |= (1<<gpio_pin);
+}
+
+void GPIO_ResetPin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
+{
+	gpio_td->BSRR |= (1<<(16 + gpio_pin));
+}
+
 void GPIO_TogglePin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
 {
 	/* If pin is HIGH, set to LOW */
@@ -267,8 +281,8 @@ void GPIO_Toggle2_With_Delay(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
 void CS43L22_PowerUp()
 {
 	/* 1. Reset CS43L22 by toggling PD4 */
-	GPIO_Toggle2_With_Delay(GPIOD, 4);
-	
+	GPIO_SetPin(GPIOD, 4);
+		
 	/* 2. Start MCLK with appropriate frequency - MCLK 12Mhz, Sample rate 8.000 */
 	uint8_t clock_settings = 0;
 	clock_settings &= ~(1<<0);	//MCLK Divide By 2
@@ -293,7 +307,7 @@ void CS43L22_PowerDown()
 	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, POWER_CONTROL_1, 0x02);
 	
 	/* 3. Set ~RESET to LOW */
-	GPIOD->BSRR |= (1<<4);
+	GPIO_ResetPin(GPIOD, 4);
 }
 
 void CS43L22_Configure()
@@ -328,7 +342,6 @@ void CS43L22_Master_Volume_Control()
 int main(void)
 {
 	/* CS43L22 - I2C(Control) & I2S(Audio) */
-	
 	CS43L22_GPIO_Init();
 	LED_GPIO_Init();
 	CS43L22_I2C1_Init();
