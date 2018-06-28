@@ -125,10 +125,48 @@ void CS43L22_I2C1_Init()
 	I2C1->CR1 |= (1<<0);			//I2C1 peripheral enable
 }
 
+void PLL_I2S_Clock_Configure()
+{
+	/* Enable PLLI2S clock */
+	RCC->CR |= (1<<26);
+	
+	/* Wait until PLL I2S clock is locked */
+	while (!((RCC->CR>>27) & 0x1));
+	
+	/* Set division factor for the PLLI2S clock, before VCO
+	 * so that VCO input frequency ~ 1-2MHz
+	 * HSI is 16MHz, so divide by 8
+	 */
+	RCC->PLLCFGR |= (1<<3);
+	RCC->PLLCFGR &= ~(3<<4);
+	
+	/* Now PLLI2S is at 2MHz */
+	
+	/* Set PLLI2S division factor for I2C clock */
+	RCC->PLLI2SCFGR |= (2<<28);
+	
+	/* Now PLLI2S is at 1MHz */
+	
+	/* Set PLLI2S multiplication factor for VCO */
+	RCC->PLLI2SCFGR &= ~(0xF<<6);
+	RCC->PLLI2SCFGR |= (3<<10);
+	RCC->PLLI2SCFGR &= ~(3<<12);
+	
+	/* Now PLLI2S is at 48MHz */
+	
+	/* Set HSI as the PLLI2S clock source */
+	RCC->PLLCFGR &= ~(1<<22);
+	
+	/* Set PLLI2S clock as the I2S clock */
+	RCC->CFGR &= ~(1<<23);
+	
+	/* Enable I2S3 clock */
+	RCC->APB1ENR |= (1<<15);
+}
+
 void CS43L22_I2S3_Init()
 {
-	RCC->APB1ENR |= (1<<15);	//I2S3 clock enable
-	//I2SPLL
+	PLL_I2S_Clock_Configure();
 	SPI3->I2SCFGR &= ~(1<<0);	//Channel length - 16bits
 	SPI3->I2SCFGR &= ~(3<<1);	//Data length - 16bits
 	SPI3->I2SCFGR &= ~(1<<3); //Clock polartiy low
@@ -154,6 +192,11 @@ void I2C1_WaitUntilRxRegNotEmpty()
 	while (!((I2C1->SR1 >> 6) & 0x1));
 }
 
+void I2C1_WaitUntilBTF()
+{
+	while (!((I2C1->SR1>>2) & 0x1));
+}
+
 void I2C1_GenerateSTART()
 {
 	I2C1->CR1 |= (1<<8);				//Generate START condition
@@ -164,7 +207,7 @@ void I2C1_GenerateSTART()
 
 void I2C1_Send7bitAddressW(uint8_t addr)
 {
-	I2C1->DR = (addr<<1);								//Write address to I2C data register
+	I2C1->DR = (addr<<1);										//Write address to I2C data register
 	while (!((I2C1->SR1 >> 1) & 0x1));	//Wait until address is sent
 	
 	(void)I2C1->SR1;										//Clear SB bit by reading SR1 & SR2
@@ -205,7 +248,7 @@ void CS43L22_I2C1_Write(uint8_t device_addr, uint8_t MAP_byte, uint8_t data)
 	I2C1_WaitUntilTxRegEmpty();							//Send MAP byte, auto-increment off
 	I2C1_Set_DR(MAP_byte);
 	
-	I2C1_WaitUntilTxRegEmpty();							//Send data to be written
+	I2C1_WaitUntilBTF();										//Send data to be written
 	I2C1_Set_DR(data);
 	
 	I2C1_GenerateStop();
@@ -294,7 +337,7 @@ void CS43L22_PowerUp()
 	
 	/* 3. Set POWER_CONTROL_1 register to 0x9E */
 	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, POWER_CONTROL_1, 0x9E);
-	
+		
 	/* 4. Apply WS, SCLK and SDIN for normal operation to begin */
 	CS43L22_I2S3_Init();
 }
@@ -319,49 +362,110 @@ void CS43L22_Configure()
 	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, INTERFACE_CONTROL_1, ic1_data);
 }
 
+int CS43L22_Config_BeepGenerator()
+{
+	/* 1. Master volume control - set to +12dB */
+	uint8_t master_vol = 0x18;
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, MASTER_VOLUME_CONTROL_A, master_vol);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, MASTER_VOLUME_CONTROL_B, master_vol);
+	
+	/* 2. PCMx volume control to +12dB */
+	uint8_t pcm_vol =  0x18;
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PCMA_VOLUME, pcm_vol);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PCMB_VOLUME, pcm_vol);
+	
+	/* 3. Configure beep frequency to 521.74Hz & on time to 2.80s */
+	uint8_t freq_on_time = 0x18;
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, BEEP_FREQUENCY_AND_ON_TIME, freq_on_time);
+	
+	/* 4. Configure beep volume to 12dB & off time to 2.58s */
+	uint8_t vol_off_time = 0x6;
+	vol_off_time &= ~(7<<5);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, BEEP_VOLUME_AND_OFF_TIME, vol_off_time);
+	
+	/* 5. Configure beep mix & enable beep in multiple mode */
+	uint8_t beep_tone = 0;
+	beep_tone |= (2<<6);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, BEEP_AND_TONE_CONFIG, beep_tone);
+	
+	return 0;
+}
+
 void CS43L22_Headphone_Mute()
 {
+	uint8_t playback_ctrl2 = 0;
+	playback_ctrl2 |= (3<<6);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PLAYBACK_CONTROL_2, playback_ctrl2);
 }
 
 void CS43L22_Headphone_Unmute()
 {
+	uint8_t playback_ctrl2 = 0;
+	playback_ctrl2 &= ~(3<<6);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PLAYBACK_CONTROL_2, playback_ctrl2);
 }
 
 void CS43L22_Speaker_Mute()
 {
+	uint8_t playback_ctrl2 = 0;
+	playback_ctrl2 |= (3<<4);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PLAYBACK_CONTROL_2, playback_ctrl2);
 }
 
 void CS43L22_Speaker_Unmute()
 {
-}
-
-void CS43L22_Master_Volume_Control()
-{
+	uint8_t playback_ctrl2 = 0;
+	playback_ctrl2 &= ~(3<<4);
+	CS43L22_I2C1_Write(CS43L22_DEVICE_ADDR, PLAYBACK_CONTROL_2, playback_ctrl2);
 }
 
 int main(void)
 {
 	/* CS43L22 - I2C(Control) & I2S(Audio) */
+	
+	int program_status = -1;
+	
+	/* Enable GPIO for CS43L22 */
 	CS43L22_GPIO_Init();
+	
+	/* Enable GPIO for LEDs */
 	LED_GPIO_Init();
+	
+	/* Enable I2C for CS43L22 */
 	CS43L22_I2C1_Init();
+	
+	/* Power up the CS43L22 device */
 	CS43L22_PowerUp();
+	
+	/* Set up the interface control for CS43L22 */
 	CS43L22_Configure();
 	
 	/* Read Chip ID */
 	uint8_t chip_id = CS43L22_I2C1_AbortedWrite(CS43L22_DEVICE_ADDR, CHIP_ID_REG);
+	
 	if ((chip_id>>3) == 0x1C) {
 		LED_Toggle(12);
 	}
 	else {
-		LED_On(14);
 		goto stop;
 	}
 	
-	/* Beep Generator */
+	/* Configure and start the CS43L22 beep generator */
+	program_status = CS43L22_Config_BeepGenerator();
 	
-	stop: while (1) {
+	if (program_status == 0) {
+		goto setup_complete;
 	}
+	
+	setup_complete:
+	LED_On(12);
+	while (1) {
+		I2S3_SendData(0x0FFF);
+	}
+	
+	stop:
+	LED_On(14);
+	while (1);
 	
 	return 0;
 }
