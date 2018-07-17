@@ -121,20 +121,52 @@ uint8_t I2C1_Get_DR() {
 
 void I2C1_Write_1ByteData(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR, uint8_t data) {
 	
-	/* Generate START condition */
-	I2C1_GenerateSTART();
-}
-
-void I2C1_Write_Data(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR, uint8_t *data, int data_items) {
+	//I2C1_WaitUntilPeripheralFree();
 	
 	/* Generate START condition */
 	I2C1_GenerateSTART();
+	
+	/* Send device address */
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
+	
+	/* Send memory address to be written */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(FIRST_WORD_ADDR);
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(SECOND_WORD_ADDR);
+	
+	/* Send data to be stored */
+	I2C1_WaitUntilBTF();
+	I2C1_Set_DR(data);
+	
+	/* Generate STOP condition */
+	I2C1_GenerateStop();
+}
+
+void I2C1_Write_Data(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR, uint8_t *data, int data_items) {
+	//TODO
 }
 
 uint8_t I2C1_Read_1ByteData(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR) {
 	uint8_t data;
 	
+	//I2C1_WaitUntilPeripheralFree();
+	
 	/* Generate START condition */
 	I2C1_GenerateSTART();
-	return 0;
+	
+	I2C1_Send7bitAddressR(DEVICE_ADDR);
+	
+	/* Send memory address from where data has to be read */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(FIRST_WORD_ADDR);
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(SECOND_WORD_ADDR);
+
+	I2C1_WaitUntilRxRegNotEmpty();
+	data = I2C1_Get_DR();
+	
+	/* Generate STOP condition */
+	I2C1_GenerateStop();
+	return data;
 }
