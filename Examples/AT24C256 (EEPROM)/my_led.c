@@ -1,25 +1,10 @@
 #include "stm32f4xx.h"                  // Device header
-
-#define GPIO_MODE_INPUT		0x0
-#define GPIO_MODE_OUTPUT	0x1
-#define GPIO_MODE_AF			0x2
-#define GPIO_MODE_ANALOG	0x3
-
-#define GPIO_OTYPE_PP 0x0
-#define GPIO_OTYPE_OD 0x1
-
-#define GPIO_SPEED_LOW				0x0
-#define GPIO_SPEED_MEDIUM			0x1
-#define GPIO_SPEED_HIGH				0x2
-#define GPIO_SPEED_VERY_HIGH	0x3
-
-#define GPIO_NO_PULL		0x0
-#define GPIO_PULL_UP		0x1
-#define GPIO_PULL_DOWN	0x2
+#include "my_gpio.h"
+#include "my_led.h"
 
 void LED_GPIO_Init() {
 	
-	/* Enable GPIOD */
+	/* Enable GPIOD clock */
 	RCC->AHB1ENR |= (1<<3);
 	
 	/* Set GPIOD mode to output */
@@ -60,17 +45,4 @@ void LED_Toggle(uint8_t ld) {
 
 void LED_Init() {
 	LED_GPIO_Init();
-}
-
-void I2C1_GPIO_Init() {
-	/* PB6 - I2C1_SCL, PB7 - I2C1_SDA */
-}
-
-void I2C1_Init() {
-	I2C1_GPIO_Init();
-}
-
-int main() {
-	LED_Init();
-	return 0;
 }
