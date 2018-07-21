@@ -1,5 +1,9 @@
 #include "stm32f4xx.h"                  // Device header
+
 #include "my_gpio.h"
+#include "my_i2c.h"
+
+#include "stdlib.h"
 
 void I2C1_GPIO_Init() {
 	/* PB6 - I2C1_SCL, PB7 - I2C1_SDA */
@@ -22,6 +26,10 @@ void I2C1_GPIO_Init() {
 	/* Enable pull-up resistors */
 	GPIOB->PUPDR |= (GPIO_PULL_UP << 12);
 	GPIOB->PUPDR |= (GPIO_PULL_UP << 14);
+	
+	/* Configure GPIO pins, for alternate function */
+	GPIOB->AFR[0] |= (4 << 24);
+	GPIOB->AFR[0] |= (4 << 28);
 }
 
 void I2C1_Init() {
@@ -39,10 +47,17 @@ void I2C1_Init() {
 	I2C1->CCR &= ~(1 << 15);
 	
 	/* Set I2C1_SCL frequency to 100KHz */
-	
+	I2C1->CCR |= 0x28;
 	
 	/* I2C1 peripheral enable */
 	I2C1->CR1 |= (1 << 0);
+	
+	I2C1_ACK_En();
+}
+
+void I2C1_SoftwareReset()
+{
+	I2C1->CR1 |= (1 << 15);
 }
 
 void I2C1_ACK_En() {
@@ -119,54 +134,129 @@ uint8_t I2C1_Get_DR() {
 	return data;
 }
 
-void I2C1_Write_1ByteData(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR, uint8_t data) {
-	
-	//I2C1_WaitUntilPeripheralFree();
-	
-	/* Generate START condition */
+void EEPROM_256K_I2C1_Byte_Write(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t data)
+{
 	I2C1_GenerateSTART();
 	
-	/* Send device address */
 	I2C1_Send7bitAddressW(DEVICE_ADDR);
 	
-	/* Send memory address to be written */
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(FIRST_WORD_ADDR);
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(SECOND_WORD_ADDR);
+	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
+	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
 	
-	/* Send data to be stored */
-	I2C1_WaitUntilBTF();
+	/* Send first word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_1);
+	
+	/* Send second word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_2);
+	
+	/* Send data */
+	I2C1_WaitUntilTxRegEmpty();
 	I2C1_Set_DR(data);
 	
-	/* Generate STOP condition */
+	I2C1_WaitUntilBTF();
 	I2C1_GenerateStop();
 }
 
-void I2C1_Write_Data(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR, uint8_t *data, int data_items) {
-	//TODO
-}
-
-uint8_t I2C1_Read_1ByteData(uint8_t DEVICE_ADDR, uint8_t FIRST_WORD_ADDR, uint8_t SECOND_WORD_ADDR) {
-	uint8_t data;
-	
-	//I2C1_WaitUntilPeripheralFree();
-	
-	/* Generate START condition */
+void EEPROM_256K_I2C1_Page_Write(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t *data, int N)
+{
 	I2C1_GenerateSTART();
 	
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
+	
+	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
+	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
+	
+	/* Send first word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_1);
+	
+	/* Send second word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_2);
+	
+	for (uint8_t *pd = data; pd < (data + N); pd++) {
+		I2C1_WaitUntilTxRegEmpty();
+		I2C1_Set_DR(*pd);
+	}
+	
+	I2C1_WaitUntilBTF();
+	I2C1_GenerateStop();
+}
+
+
+uint8_t EEPROM_256K_I2C1_Current_Read(uint8_t DEVICE_ADDR)
+{
+	uint8_t read_data;
+	
+	I2C1_GenerateSTART();
 	I2C1_Send7bitAddressR(DEVICE_ADDR);
 	
-	/* Send memory address from where data has to be read */
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(FIRST_WORD_ADDR);
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(SECOND_WORD_ADDR);
-
 	I2C1_WaitUntilRxRegNotEmpty();
-	data = I2C1_Get_DR();
+	read_data = I2C1_Get_DR();
 	
-	/* Generate STOP condition */
 	I2C1_GenerateStop();
-	return data;
+	return read_data;
+}
+
+uint8_t EEPROM_256K_I2C1_Random_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR)
+{
+	uint8_t read_data;
+	
+	I2C1_GenerateSTART();
+	
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
+	
+	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
+	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
+	
+	/* Send first word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_1);
+	
+	/* Send second word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_2);
+	
+	I2C1_GenerateSTART();
+	I2C1_Send7bitAddressR(DEVICE_ADDR);
+	
+	I2C1_WaitUntilRxRegNotEmpty();
+	read_data = I2C1_Get_DR();
+	
+	I2C1_GenerateStop();
+	return read_data;
+}
+
+uint8_t *EEPROM_256K_I2C1_Sequential_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, int N)
+{
+	uint8_t *read_data = (uint8_t *)malloc(N * sizeof(uint8_t));
+	uint8_t *k = read_data;
+	
+	I2C1_GenerateSTART();
+	
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
+	
+	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
+	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
+	
+	/* Send first word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_1);
+	
+	/* Send second word address */
+	I2C1_WaitUntilTxRegEmpty();
+	I2C1_Set_DR(mem_addr_2);
+	
+	I2C1_GenerateSTART();
+	I2C1_Send7bitAddressR(DEVICE_ADDR);
+	
+	for (int i = 1; i <= N; i++, read_data++) {
+		I2C1_WaitUntilRxRegNotEmpty();
+		*read_data = I2C1_Get_DR();
+	}
+	
+	I2C1_GenerateStop();
+	return k;
 }

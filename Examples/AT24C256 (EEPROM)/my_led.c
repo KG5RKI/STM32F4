@@ -26,7 +26,7 @@ void LED_Toggle(uint8_t ld) {
 	uint8_t led_status = ((GPIOD->ODR >> ld) & 0x1);
 	
 	if (led_status == 1) {
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 2; i++) {
 			LED_Off(ld);
 			for (int j = 0; j < 500000; j++);
 			LED_On(ld);
@@ -34,7 +34,7 @@ void LED_Toggle(uint8_t ld) {
 		}
 	}
 	else {
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 2; i++) {
 			LED_On(ld);
 			for (int j = 0; j < 500000; j++);
 			LED_Off(ld);
