@@ -1,13 +1,7 @@
 #include "stdint.h"
 
 #define EEPROM_1_256K_ADDR 0x50
-#define EEPROM_2_256K_ADDR 0x51
-#define EEPROM_3_256K_ADDR 0x52
-#define EEPROM_4_256K_ADDR 0x53
-#define EEPROM_5_256K_ADDR 0x54
-#define EEPROM_6_256K_ADDR 0x55
-#define EEPROM_7_256K_ADDR 0x56
-#define EEPROM_8_256K_ADDR 0x57
+#define EEPROM_2_256K_ADDR 0x57
 
 void I2C1_GPIO_Init(void);
 void I2C1_Init(void);
