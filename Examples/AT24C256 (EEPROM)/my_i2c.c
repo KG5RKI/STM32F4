@@ -6,30 +6,30 @@
 #include "stdlib.h"
 
 void I2C1_GPIO_Init() {
-	/* PB6 - I2C1_SCL, PB7 - I2C1_SDA */
+	/* PB6 - I2C1_SCL, PB9 - I2C1_SDA */
 	
 	/* Enable GPIOB clock */
 	RCC->AHB1ENR |= (1<<1);
 	
 	/* Set pins' mode to alternate function */
 	GPIOB->MODER |= (GPIO_MODE_AF << 12);
-	GPIOB->MODER |= (GPIO_MODE_AF << 14);
+	GPIOB->MODER |= (GPIO_MODE_AF << 18);
 	
 	/* Set output type to open drain */
 	GPIOB->OTYPER |= (GPIO_OTYPE_OD << 6);
-	GPIOB->OTYPER |= (GPIO_OTYPE_OD << 7);
+	GPIOB->OTYPER |= (GPIO_OTYPE_OD << 9);
 	
 	/* Set output speed to high */
 	GPIOB->OSPEEDR |= (GPIO_SPEED_HIGH << 12);
-	GPIOB->OSPEEDR |= (GPIO_SPEED_HIGH << 14);
+	GPIOB->OSPEEDR |= (GPIO_SPEED_HIGH << 18);
 	
 	/* Enable pull-up resistors */
 	GPIOB->PUPDR |= (GPIO_PULL_UP << 12);
-	GPIOB->PUPDR |= (GPIO_PULL_UP << 14);
+	GPIOB->PUPDR |= (GPIO_PULL_UP << 18);
 	
 	/* Configure GPIO pins, for alternate function */
 	GPIOB->AFR[0] |= (4 << 24);
-	GPIOB->AFR[0] |= (4 << 28);
+	GPIOB->AFR[1] |= (4 << 4);
 }
 
 void I2C1_Init() {
@@ -42,9 +42,6 @@ void I2C1_Init() {
 	
 	/* Set peripheral clock frequenecy to 16MHz */
 	I2C1->CR2 |= 16;
-	
-	/* Set mode to SM(Standard Mode) */
-	I2C1->CCR &= ~(1 << 15);
 	
 	/* Set I2C1_SCL frequency to 100KHz */
 	I2C1->CCR |= 0x28;
@@ -136,18 +133,15 @@ uint8_t I2C1_Get_DR() {
 
 void EEPROM_256K_I2C1_Byte_Write(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t data)
 {
-	I2C1_GenerateSTART();
-	
-	I2C1_Send7bitAddressW(DEVICE_ADDR);
-	
 	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
 	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
 	
-	/* Send first word address */
+	I2C1_GenerateSTART();
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
+	
+	/* Send first & second word address */
 	I2C1_WaitUntilTxRegEmpty();
 	I2C1_Set_DR(mem_addr_1);
-	
-	/* Send second word address */
 	I2C1_WaitUntilTxRegEmpty();
 	I2C1_Set_DR(mem_addr_2);
 	
@@ -155,28 +149,16 @@ void EEPROM_256K_I2C1_Byte_Write(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t
 	I2C1_WaitUntilTxRegEmpty();
 	I2C1_Set_DR(data);
 	
-	I2C1_WaitUntilBTF();
+	//I2C1_WaitUntilBTF();
 	I2C1_GenerateStop();
 }
 
-void EEPROM_256K_I2C1_Page_Write(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t *data, int N)
+void EEPROM_256K_I2C1_64Byte_Page_Write(uint8_t DEVICE_ADDR, uint8_t *data)
 {
 	I2C1_GenerateSTART();
-	
 	I2C1_Send7bitAddressW(DEVICE_ADDR);
 	
-	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
-	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
-	
-	/* Send first word address */
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(mem_addr_1);
-	
-	/* Send second word address */
-	I2C1_WaitUntilTxRegEmpty();
-	I2C1_Set_DR(mem_addr_2);
-	
-	for (uint8_t *pd = data; pd < (data + N); pd++) {
+	for (uint8_t *pd = data; pd < (data + 64); pd++) {
 		I2C1_WaitUntilTxRegEmpty();
 		I2C1_Set_DR(*pd);
 	}
@@ -203,13 +185,11 @@ uint8_t EEPROM_256K_I2C1_Current_Read(uint8_t DEVICE_ADDR)
 uint8_t EEPROM_256K_I2C1_Random_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR)
 {
 	uint8_t read_data;
-	
-	I2C1_GenerateSTART();
-	
-	I2C1_Send7bitAddressW(DEVICE_ADDR);
-	
 	uint8_t mem_addr_1 = (uint8_t) MEM_ADDR & 0xFF;
 	uint8_t mem_addr_2 = (uint8_t) ((MEM_ADDR >> 8) & 0xFF);
+	
+	I2C1_GenerateSTART();
+	I2C1_Send7bitAddressW(DEVICE_ADDR);
 	
 	/* Send first word address */
 	I2C1_WaitUntilTxRegEmpty();
@@ -229,11 +209,8 @@ uint8_t EEPROM_256K_I2C1_Random_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR)
 	return read_data;
 }
 
-uint8_t *EEPROM_256K_I2C1_Sequential_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, int N)
+void EEPROM_256K_I2C1_Sequential_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR, uint8_t *loc, int N)
 {
-	uint8_t *read_data = (uint8_t *)malloc(N * sizeof(uint8_t));
-	uint8_t *k = read_data;
-	
 	I2C1_GenerateSTART();
 	
 	I2C1_Send7bitAddressW(DEVICE_ADDR);
@@ -252,11 +229,10 @@ uint8_t *EEPROM_256K_I2C1_Sequential_Read(uint8_t DEVICE_ADDR, uint16_t MEM_ADDR
 	I2C1_GenerateSTART();
 	I2C1_Send7bitAddressR(DEVICE_ADDR);
 	
-	for (int i = 1; i <= N; i++, read_data++) {
+	for (int i = 0; i < N; i++, loc++) {
 		I2C1_WaitUntilRxRegNotEmpty();
-		*read_data = I2C1_Get_DR();
+		*loc = I2C1_Get_DR();
 	}
 	
 	I2C1_GenerateStop();
-	return k;
 }

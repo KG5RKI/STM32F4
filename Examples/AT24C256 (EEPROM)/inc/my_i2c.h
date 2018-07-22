@@ -1,7 +1,6 @@
 #include "stdint.h"
 
-#define EEPROM_1_256K_ADDR 0x50
-#define EEPROM_2_256K_ADDR 0x57
+#define EEPROM_256K_ADDR 0x50
 
 void I2C1_GPIO_Init(void);
 void I2C1_Init(void);
@@ -20,7 +19,7 @@ void I2C1_Set_DR(uint8_t);
 uint8_t I2C1_Get_DR(void);
 
 void EEPROM_256K_I2C1_Byte_Write(uint8_t, uint16_t, uint8_t);
-void EEPROM_256K_I2C1_Page_Write(uint8_t, uint16_t, uint8_t *, int);
+void EEPROM_256K_I2C1_64Byte_Page_Write(uint8_t, uint8_t *);
 uint8_t EEPROM_256K_I2C1_Current_Read(uint8_t);
 uint8_t EEPROM_256K_I2C1_Random_Read(uint8_t, uint16_t);
-uint8_t *EEPROM_256K_I2C1_Sequential_Read(uint8_t, uint16_t, int);
+void EEPROM_256K_I2C1_Sequential_Read(uint8_t, uint16_t, uint8_t *, int);

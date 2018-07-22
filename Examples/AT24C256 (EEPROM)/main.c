@@ -6,26 +6,36 @@
 
 int main() {
 	
-	/* Blue LED blinks - Data sent successfully
-	 * Green LED blinks - Data received successfully
-	 * Red LED on - Data not matched
-	 * Green LED on - Sent and received data matches
-	 */
-	
+	/* Initialize the peripherals */
 	LED_Init();
 	I2C1_Init();
 	
 	/* APPLICATION CODE STARTS HERE */
 
-	LED_Toggle(14);
-	EEPROM_256K_I2C1_Byte_Write(EEPROM_1_256K_ADDR, 0xCCC, 0xAA);
-	uint8_t read_d = EEPROM_256K_I2C1_Random_Read(EEPROM_1_256K_ADDR, 0xCCC);
+	LED_Toggle(14, 2);
+	uint8_t eeprom_write_data[64] = {
+		0x00, 0x00, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+		0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE, 0xEE,
+	};
+	uint8_t eeprom_read_data[62];
 	
-	LED_Toggle(12);
+	//EEPROM_256K_I2C1_64Byte_Page_Write(EEPROM_256K_ADDR, &eeprom_write_data[0]);
 	
-	if (read_d == 0xAA) {
-		LED_On(12);
+	/* This is same as the above page write function */
+	for (uint8_t addr = 0; addr < 62; addr++) {
+		EEPROM_256K_I2C1_Byte_Write(EEPROM_256K_ADDR, addr, 0xEE);
 	}
+	
+	EEPROM_256K_I2C1_Sequential_Read(EEPROM_256K_ADDR, 0, &eeprom_read_data[0], 62);
+	
+	LED_Toggle(12, 2);
+	LED_On(12);
 	
 	/* APPLICATION CODE ENDS HERE */
 	
