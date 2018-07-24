@@ -21,21 +21,12 @@ void CS43L22_PowerUp()
 {
 	/* 1. Reset CS43L22 by toggling PD4 */
 	GPIO_SetPin(GPIOD, 4);
-		
-	/* 2. Start MCLK with appropriate frequency - MCLK 12Mhz, Sample rate 8.000 */
-	uint8_t clock_settings = 0;
-	clock_settings &= ~(1<<0);	//MCLK Divide By 2
-	clock_settings |= (1<<1);		//Internal MCLK/LRCK Ratio
-	clock_settings &= ~(1<<3);	//27 MHz Video Clock
-	clock_settings |= (1<<4);		//32kHz Sample Rate Group
-	clock_settings |= (3<<5);		//Speed Mode
-	I2C1_Write(CS43L22_DEVICE_ADDR, CLOCKING_CONTROL, clock_settings);
-	
-	/* 3. Set POWER_CONTROL_1 register to 0x9E */
+			
+	/* 2. Set POWER_CONTROL_1 register to 0x9E */
 	I2C1_Write(CS43L22_DEVICE_ADDR, POWER_CONTROL_1, 0x9E);
-		
-	/* 4. Apply WS, SCLK and SDIN for normal operation to begin */
-	I2S3_Init();
+	
+	/* 3. Configure the auto-detect circuitry */
+	I2C1_Write(CS43L22_DEVICE_ADDR, CLOCKING_CONTROL, 0x80);
 }
 
 void CS43L22_PowerDown()
@@ -47,15 +38,6 @@ void CS43L22_PowerDown()
 	
 	/* 3. Set ~RESET to LOW */
 	GPIO_ResetPin(GPIOD, 4);
-}
-
-void CS43L22_Configure_Interface()
-{
-	/* Interface control 1*/
-	uint8_t ic1_data = 0;
-	ic1_data |= (1<<2);		//DAC Interface Format - I2S
-	ic1_data &= ~(1<<7);	//Slave(input only)
-	I2C1_Write(CS43L22_DEVICE_ADDR, INTERFACE_CONTROL_1, ic1_data);
 }
 
 void CS43L22_Headphone_Mute()

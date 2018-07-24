@@ -42,7 +42,6 @@
 void CS43L22_GPIO_Init(void);
 void CS43L22_PowerUp(void);
 void CS43L22_PowerDown(void);
-void CS43L22_Configure_Interface(void);
 void CS43L22_Headphone_Mute(void);
 void CS43L22_Headphone_Unmute(void);
 void CS43L22_Speaker_Mute(void);

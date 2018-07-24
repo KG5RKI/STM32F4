@@ -1,4 +1,6 @@
 #include "stm32f4xx.h"                  // Device header
+#include "EventRecorder.h"              // Keil.ARM Compiler::Compiler:Event Recorder
+#include "stdio.h"
 
 #include "stm32f4xx_gpio_custom.h"
 #include "stm32f4xx_i2c_custom.h"
@@ -10,19 +12,25 @@
 
 int main(void)
 {
+	/* Initialize the EventRecorder */
+	EventRecorderInitialize(EventRecordAll, 1);
+	
+	/* Initialize all required peripherals */
 	CS43L22_GPIO_Init();
-	I2C1_Init();
 	LED_Init();
+	I2C1_Init();
+	I2S3_Init();
+	
+	/* Power up the audio DAC */
 	CS43L22_PowerUp();
-	CS43L22_Configure_Interface();
 	
-	uint8_t chip_id = I2C1_Read(CS43L22_DEVICE_ADDR, CHIP_ID_REG);
+	fprintf(stdout, "Chip ID         = 0x%x\n", I2C1_Read(CS43L22_DEVICE_ADDR, CHIP_ID_REG));
+	fprintf(stdout, "Power Control 1 = 0x%x\n", I2C1_Read(CS43L22_DEVICE_ADDR, POWER_CONTROL_1));
 	
-	if ((chip_id>>3) == 0x1C) {
-		LED_Toggle(12);
+	while (1) {
+		I2S3_SendData(0xAA);
 	}
-	
-	CS43L22_Config_BeepGenerator();
+	//CS43L22_Config_BeepGenerator();
 	
 	return 0;
 }
