@@ -8,7 +8,6 @@
 #include "stm32f4xx_led_custom.h"
 
 #include "cs43l22.h"
-#include "cs43l22_beep_generator.h"
 
 int main(void)
 {
@@ -21,16 +20,16 @@ int main(void)
 	I2C1_Init();
 	I2S3_Init();
 	
-	/* Power up the audio DAC */
 	CS43L22_PowerUp();
 	
-	fprintf(stdout, "Chip ID         = 0x%x\n", I2C1_Read(CS43L22_DEVICE_ADDR, CHIP_ID_REG));
-	fprintf(stdout, "Power Control 1 = 0x%x\n", I2C1_Read(CS43L22_DEVICE_ADDR, POWER_CONTROL_1));
+	CS43L22_Config_BeepGenerator();
 	
 	while (1) {
-		I2S3_SendData(0xAA);
+		for (int data = 0x7777; data < 0xFFFF; data++) {
+			I2S3_SendData(data);
+			for (int d = 0; d < 1000; d++);
+		}
 	}
-	//CS43L22_Config_BeepGenerator();
 	
 	return 0;
 }

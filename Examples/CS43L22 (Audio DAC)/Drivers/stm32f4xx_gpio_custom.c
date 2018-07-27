@@ -1,37 +1,50 @@
 #include "stm32f4xx.h"                  // Device header
+
 #include "stm32f4xx_gpio_custom.h"
 
-void GPIO_SetPin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
+void GPIO_ClockInit(GPIO_TypeDef *port)
 {
-	gpio_td->BSRR |= (1<<gpio_pin);
-}
-
-void GPIO_ResetPin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
-{
-	gpio_td->BSRR |= (1<<(16 + gpio_pin));
-}
-
-void GPIO_TogglePin(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
-{
-	/* If pin is HIGH, set to LOW */
-	if ((gpio_td->ODR >> gpio_pin) & 0x1) {
-		gpio_td->ODR &= ~(1<<gpio_pin);
+	if (port == GPIOA) {
+		RCC->AHB1ENR |= (1 << 0);
 	}
-	
-	/* else if pin if LOW, set to HIGH */
+	else if (port == GPIOB) {
+		RCC->AHB1ENR |= (1 << 1);
+	}
+	else if (port == GPIOC) {
+		RCC->AHB1ENR |= (1 << 2);
+	}
+	else if (port == GPIOD) {
+		RCC->AHB1ENR |= (1 << 3);
+	}
+	else if (port == GPIOE) {
+		RCC->AHB1ENR |= (1 << 4);
+	}
+}
+
+void GPIO_Config(GPIO_TypeDef *port, uint8_t pin, uint8_t MODE, uint8_t OTYPE, uint8_t OSPEED, uint8_t PULL)
+{
+	port->MODER |= (MODE << (2*pin));
+	port->OTYPER |= (OTYPE << pin);
+	port->OSPEEDR |= (OSPEED << (2*pin));
+	port->PUPDR |= (PULL << (2*pin));
+}
+
+void GPIO_Config_AF(GPIO_TypeDef *port, uint8_t pin, uint8_t AF)
+{
+	if (pin <= 7) {
+		port->AFR[0] |= (AF << (4*pin));
+	}
 	else {
-		gpio_td->ODR |= (1<<gpio_pin);
+		port->AFR[1] |= (AF << (4*(pin - 8)));
 	}
 }
 
-void GPIO_Toggle2_With_Delay(GPIO_TypeDef *gpio_td, uint8_t gpio_pin)
+void GPIO_SetPin(GPIO_TypeDef *port, uint8_t pin)
 {
-	GPIO_TogglePin(gpio_td, gpio_pin);
-	
-	for (int i = 0; i < 500000; i++) {
-		/* Delay */
-	}
-	
-	GPIO_TogglePin(gpio_td, gpio_pin);
+	port->BSRR |= (1 << pin);
 }
 
+void GPIO_ResetPin(GPIO_TypeDef *port, uint8_t pin)
+{
+	port->BSRR |= (1 << (pin + 16));
+}

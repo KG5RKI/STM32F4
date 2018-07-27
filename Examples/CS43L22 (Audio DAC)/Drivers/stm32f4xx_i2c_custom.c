@@ -7,20 +7,11 @@ void I2C1_GPIO_Init()
 {
 	/* Configure I2C pins - SCL(PB6) &  SDA(PB9) */
 	
-	/* Enable GPIOB clock */
-	RCC->AHB1ENR |= (1<<1);
-	
-	/* Configure GPIOB registers for I2C */
-	GPIOB->MODER |= (2<<12);
-	GPIOB->MODER |= (2<<18);
-	GPIOB->OSPEEDR |= (2<<12);
-	GPIOB->OSPEEDR |= (2<<18);
-	GPIOB->OTYPER |= (1<<6);
-	GPIOB->OTYPER |= (1<<9);
-	GPIOB->PUPDR |= (1<<12);
-	GPIOB->PUPDR |= (1<<18);
-	GPIOB->AFR[0] |= (4<<24);
-	GPIOB->AFR[1] |= (4<<4);
+	GPIO_ClockInit(GPIOB);
+	GPIO_Config(GPIOB, 6, GPIO_MODE_ALTERNATE, GPIO_OTYPE_OD, GPIO_OSPEED_FAST, GPIO_PULL_UP);
+	GPIO_Config(GPIOB, 9, GPIO_MODE_ALTERNATE, GPIO_OTYPE_OD, GPIO_OSPEED_FAST, GPIO_PULL_UP);
+	GPIO_Config_AF(GPIOB, 6, GPIO_AF4);
+	GPIO_Config_AF(GPIOB, 9, GPIO_AF4);
 }
 
 void I2C1_Init()

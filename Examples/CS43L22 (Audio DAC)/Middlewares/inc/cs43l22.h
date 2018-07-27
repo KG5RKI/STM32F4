@@ -1,3 +1,5 @@
+#include "stdint.h"
+
 #define CS43L22_DEVICE_ADDR (uint8_t)0x4A
 
 #define CHIP_ID_REG                 (uint8_t)0x01
@@ -46,3 +48,7 @@ void CS43L22_Headphone_Mute(void);
 void CS43L22_Headphone_Unmute(void);
 void CS43L22_Speaker_Mute(void);
 void CS43L22_Speaker_Unmute(void);
+void CS43L22_Set_MSTA(uint8_t);
+void CS43L22_Set_MSTB(uint8_t);
+void CS43L22_Config_DSPEngine(void);
+void CS43L22_Config_BeepGenerator(void);
